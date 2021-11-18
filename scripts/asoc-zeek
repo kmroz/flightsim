@@ -14,12 +14,14 @@ zeekcmd=zeek
 capcmd=capstats
 sshcmd=ssh
 default_workdir="$HOME/.flightsim/zeek"
-sftp_host="sftp.staging.alphasoc.net"
+# SFTP host is set based on --staging.
+sftp_host=""
 sftp_port="2222"
 workdir=""
 org_id=""
 intf=""
 quiet=false
+staging=false
 zeek_status_filename=".status"
 # $workdir/$zeek_status_filename once workdir is determined.
 zeek_status_file=""
@@ -38,6 +40,7 @@ Optional arguments:
   -h|--help
   -m|--man
   -q|--quiet
+  -s|--staging
   -w|--work <WORK_DIR> (default: $default_workdir)
 "
 
@@ -48,7 +51,7 @@ $scriptname automates Zeek configuration and execution.  $scriptname is meant
 to be used alongside AlphaSOC's threat simulation tool, Network Flight Simulator
 (which can be found at https://github.com/alphasoc/flightsim), to showcase the
 various threats that can be detected and displayed via the AlphaSOC Console
-(https://console.staging.alphasoc.net).
+(https://console.alphasoc.net).
 
 User Permissions:
 Zeek captures and analyzes host generated network traffic.  As such, the user
@@ -70,8 +73,10 @@ to /opt/zeek/bin, run:
   $ export PATH=\$PATH:/opt/zeek/bin
 
 AlphaSOC Console:
-Next, you will need to obtain an AlphaSOC Console organization ID, by registering
-at https://console.staging.alphasoc.net.  Once registered, the organization ID
+Next, you will need to obtain an AlphaSOC Console organization ID.  If you're
+aiming for a development/staging account, register at
+https://console.staging.alphasoc.net.  Otherwise, register at
+https://console.alphasoc.net.  Once registered, the organization ID
 can be found by clicking \"Credentials\" -> \"General\" and scanning to the
 bottom of the credentials pane for \"organization_id\".
 
@@ -84,13 +89,18 @@ $scriptname and \`flightsim\` (ie. ~/.ssh/).
 
 Then, upload the public key to the AlphaSOC Console by clicking
 \"Credentials\" -> \"SSH Keys\" -> \"New SSH Key\". Once uploaded, make sure this
-key-pair will be used when communicating with https://console.staging.alphasoc.net
-by modifying your SSH client config.  This can be done by editing ~/.ssh/config,
-and adding the following lines:
+key-pair will be used when communicating with the AlphaSOC Console
+by modifying your SSH client config.  This can be done by editing ~/.ssh/config.
+For regular users, add:
 
+Host sftp.alphasoc.net
+  HostName sftp.alphasoc.net
+  IdentityFile /path/to/SSH-keys/your-key-file
+
+For development/staging users, add:
 Host sftp.staging.alphasoc.net
   HostName sftp.staging.alphasoc.net
-  IdentityFile /path/to/private-key
+  IdentityFile /path/to/SSH-keys/your-key-file
 
 Again, take note of which user account will be used to run $scriptname and apply
 the SSH client config changes to the correct account.  If you prefer, you may
@@ -111,6 +121,8 @@ Optional Command Line Options:
 \t Displays this message.
 -q|--quiet
 \t Supresses script output.
+-s|--staging
+\t Configure $scriptname for use with console.staging.alphasoc.net.
 -w|--work <WORK_DIR>
 \t WORK_DIR is an optional argument which can be used to specify the directory in
 \t which Zeek will run and deposit logs.  The generated Zeek config is also
@@ -118,7 +130,8 @@ Optional Command Line Options:
 \t The default work directory is $default_workdir.
 
 Troubleshooting:
-1. unable to authenticate ASOC_CONSOLE_ORG_ID@sftp.staging.alphasoc.net on port 2222, check SSH settings
+1. unable to authenticate ASOC_CONSOLE_ORG_ID@sftp.alphasoc.net on port 2222, check SSH settings
+   unable to authenticate ASOC_CONSOLE_ORG_ID@sftp.staging.alphasoc.net on port 2222, check SSH settings
 This message is the result of a failed connectivity test with the AlphaSOC SFTP
 server.  First, make sure that your ASOC_CONSOLE_ORG_ID matches the
 \"organization_id\" in the Credentials pane of the AlphaSOC Console.  Next,
@@ -238,7 +251,7 @@ check_preflights() {
     fi
     # Check zeek installed and in path.
     if ! cmd_in_path "$zeekcmd" || ! cmd_in_path "$capcmd"; then
-        print "\nerror: zeek bianries not found in PATH\n"
+        print "\nerror: zeek binaries not found in PATH\n"
         return $rc_err
     fi
     # Check that ssh is installed and in path.
@@ -324,6 +337,9 @@ while [[ $# -gt 0 ]]; do
         -q|--quiet)
             quiet=true
             ;;
+        -s|--staging)
+            staging=true
+            ;;
         -w|--workdir)
             workdir="$2"
             shift
@@ -354,10 +370,21 @@ fi
 workdir=$(cd "$workdir"; pwd)
 zeek_status_file="$workdir/$zeek_status_filename"
 
+# Set sftp host.
+$staging && sftp_host="sftp.staging.alphasoc.net" || sftp_host="sftp.alphasoc.net"
+
 # Some info for the user.
 print "organization id: $org_id\n"
 print "interface: $intf\n"
-print "workdir: $workdir\n\n"
+print "workdir: $workdir\n"
+print "SFTP server: $sftp_host\n"
+print "AlphaSOC Console: "
+if $staging; then
+    print "https://console.staging.alphasoc.net\n"
+else
+    print "https://console.alphasoc.net\n"
+fi
+print "\n"
 
 # Preflights.
 print "running preflight checks\n"
