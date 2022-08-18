@@ -1,0 +1,26 @@
+name: flightsim # you probably want to 'snapcraft register <name>'
+base: core18
+version: '2.2.2'
+summary: Generate malicious network traffic to evaluate security controls.
+description: |
+  flightsim is a lightweight utility used to generate malicious network traffic
+  and help security teams to evaluate security controls and network visibility.
+  The tool performs tests to simulate DNS tunneling, DGA traffic, requests to
+  known active C2 destinations, and other suspicious traffic patterns.
+grade: stable # must be 'stable' to release into candidate/stable channels
+confinement: strict # use 'strict' once you have the right plugs and slots
+license: 'CC-BY-ND-3.0'
+
+apps:
+  flightsim:
+    command: bin/flightsim
+    plugs:
+      - network
+      - network-bind
+
+parts:
+  flightsim:
+    plugin: dump
+    source: .
+    organize:
+      flightsim: bin/

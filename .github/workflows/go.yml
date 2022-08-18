@@ -29,6 +29,37 @@ jobs:
         name: Vet
         run: go vet -v ./...
       -
+        name: BUILD FOR SNAP
+        run: go build -v -mod=vendor
+      # -
+      #   name: DUMP DIR
+      #   run: |
+      #     echo $USER
+      #     pwd
+      #     ls -al
+      # -
+      #   name: Upload flightsim artifacts
+      #   uses: actions/upload-artifact@v2
+      #   # Upload the flightsim executable only to bin/ (bin will be created)
+      #   with:
+      #     name: bin
+      #     path: ./flightsim
+      -
+        name: Build snap
+        uses: snapcore/action-build@v1
+        id: snapcraft
+      -
+        name: Save snap
+        uses: actions/upload-artifact@v3
+        with:
+          name: snap
+          path: ${{ steps.snapcraft.outputs.snap }}
+      -
+        name: Test snap
+        run: |
+          sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
+          flightsim -h
+      -
         if: startsWith(github.ref, 'refs/tags/v') == true
         name: Import GPG key
         id: import_gpg
